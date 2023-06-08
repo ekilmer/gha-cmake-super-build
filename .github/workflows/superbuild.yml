@@ -49,4 +49,4 @@ jobs:
         run: sudo apt-get install -y ninja-build
 
       - name: Build spdlog
-        run: cmake --build /home/runner/build -t spdlog
+        run: cmake --build /home/runner/build -t spdlog -- -d explain
