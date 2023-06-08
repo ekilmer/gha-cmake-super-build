@@ -1,0 +1,52 @@
+name: SuperBuild
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  fmt:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v3
+        with:
+          submodules: recursive
+
+      - name: Install dependencies
+        run: sudo apt-get install -y ninja-build
+
+      - name: Configure
+        run: cmake -B /home/runner/build -S . -DCMAKE_BUILD_TYPE=Release -G Ninja
+
+      - name: Build fmt
+        run: cmake --build /home/runner/build -t fmt
+
+      - name: Upload fmt build tree
+        uses: actions/upload-artifact@v3
+        with:
+          name: fmt-build
+          path: /home/runner/build
+          retention-days: 1
+
+  spdlog:
+    runs-on: ubuntu-latest
+    needs: fmt
+
+    steps:
+      - name: Download fmt build tree
+        uses: actions/download-artifact@v3
+        with:
+          name: fmt-build
+          path: /home/runner/build
+
+      - uses: actions/checkout@v3
+        with:
+          submodules: recursive
+
+      - name: Install dependencies
+        run: sudo apt-get install -y ninja-build
+
+      - name: Build spdlog
+        run: cmake --build /home/runner/build -t spdlog

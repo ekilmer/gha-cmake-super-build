@@ -33,6 +33,8 @@ ExternalProject_Add(
     fmt
     SOURCE_DIR "${PROJECT_SOURCE_DIR}/fmt"
     CMAKE_CACHE_ARGS
+    -DFMT_TEST:BOOL=OFF
+    -DFMT_DOC:BOOL=OFF
     ${toolchain}
     ${common_flags}
     BUILD_ALWAYS YES
@@ -51,6 +53,7 @@ ExternalProject_Add(
     ${toolchain}
     -DSPDLOG_FMT_EXTERNAL:BOOL=ON
     -Dfmt_ROOT:PATH=${fmt_install_dir}
+    -DSPDLOG_BUILD_EXAMPLE:BOOL=OFF
     ${common_flags}
     BUILD_ALWAYS YES
     EXCLUDE_FROM_ALL YES
