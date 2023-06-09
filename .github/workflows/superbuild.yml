@@ -23,11 +23,11 @@ jobs:
       - name: Build fmt
         run: cmake --build /home/runner/build -t fmt
 
-      - name: Upload fmt build tree
+      - name: Upload fmt install tree
         uses: actions/upload-artifact@v3
         with:
-          name: fmt-build
-          path: /home/runner/build
+          name: fmt-install
+          path: /home/runner/build/install/fmt
           retention-days: 1
 
   spdlog:
@@ -39,14 +39,24 @@ jobs:
         with:
           submodules: recursive
 
-      - name: Download fmt build tree
-        uses: actions/download-artifact@v3
-        with:
-          name: fmt-build
-          path: /home/runner/build
-
       - name: Install dependencies
         run: sudo apt-get install -y ninja-build
 
+      - name: Configure
+        run: cmake -B /home/runner/build -S . -DCMAKE_BUILD_TYPE=Release -G Ninja
+
+      - name: Download fmt install tree
+        uses: actions/download-artifact@v3
+        with:
+          name: fmt-install
+          path: /home/runner/build/install/fmt
+
       - name: Build spdlog
         run: cmake --build /home/runner/build -t spdlog -- -d explain
+
+      - name: Upload spdlog install tree
+        uses: actions/upload-artifact@v3
+        with:
+          name: spdlog-install
+          path: /home/runner/build/install/spdlog
+          retention-days: 1
