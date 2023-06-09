@@ -7,7 +7,12 @@ on:
 
 jobs:
   fmt:
-    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [macos-12, ubuntu-22.04, windows-2022]
+
+    runs-on: ${{ matrix.os }}
 
     steps:
       - uses: actions/checkout@v3
@@ -17,25 +22,43 @@ jobs:
       - name: Install dependencies
         uses: lukka/get-cmake@latest
         with:
-          cmakeVersion: "~3.20.0"
           ninjaVersion: latest
 
       - name: Configure
-        run: cmake -B /home/runner/build -S . -DCMAKE_BUILD_TYPE=Release -G Ninja
+        run: cmake -B build -S . -DCMAKE_BUILD_TYPE=Release -G Ninja
 
       - name: Build fmt
-        run: cmake --build /home/runner/build -t fmt
+        run: cmake --build build -t fmt
 
       - name: Upload fmt install tree
         uses: actions/upload-artifact@v3
         with:
-          name: fmt-install
-          path: /home/runner/build/install/fmt
+          name: fmt_${{ matrix.os }}_install
+          path: build/install/fmt
           retention-days: 1
 
+      # Workaround for starting spdlog with matrix os
+      # https://github.com/orgs/community/discussions/26639#discussioncomment-3949595
+      - name: output
+        id: output
+        shell: pwsh
+        run: |
+          echo "$("${{ matrix.os }}".split("-")[0])=${{ matrix.os }}" >> $Env:GITHUB_OUTPUT
+          cat $Env:GITHUB_OUTPUT
+
+    outputs:
+      os-ubuntu: ${{ steps.output.outputs.ubuntu }}
+      os-macos: ${{ steps.output.outputs.macos }}
+      os-windows: ${{ steps.output.outputs.windows }}
+
   spdlog:
-    runs-on: ubuntu-latest
     needs: fmt
+
+    strategy:
+      matrix:
+        os: ${{ needs.fmt.outputs.* }}
+
+    runs-on: ${{ matrix.os }}
 
     steps:
       - uses: actions/checkout@v3
@@ -45,24 +68,23 @@ jobs:
       - name: Install dependencies
         uses: lukka/get-cmake@latest
         with:
-          cmakeVersion: "~3.20.0"
           ninjaVersion: latest
 
       - name: Configure
-        run: cmake -B /home/runner/build -S . -DCMAKE_BUILD_TYPE=Release -G Ninja
+        run: cmake -B build -S . -DCMAKE_BUILD_TYPE=Release -G Ninja
 
       - name: Download fmt install tree
         uses: actions/download-artifact@v3
         with:
-          name: fmt-install
-          path: /home/runner/build/install/fmt
+          name: fmt_${{ matrix.os }}_install
+          path: build/install/fmt
 
       - name: Build spdlog
-        run: cmake --build /home/runner/build -t spdlog -- -d explain
+        run: cmake --build build -t spdlog -- -d explain
 
       - name: Upload spdlog install tree
         uses: actions/upload-artifact@v3
         with:
-          name: spdlog-install
-          path: /home/runner/build/install/spdlog
+          name: spdlog_${{ matrix.os }}_install
+          path: build/install/spdlog
           retention-days: 1
