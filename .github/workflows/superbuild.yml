@@ -19,10 +19,56 @@ jobs:
         with:
           submodules: recursive
 
-      - name: Install dependencies
+      - name: Install CMake and Ninja
         uses: lukka/get-cmake@latest
         with:
           ninjaVersion: latest
+
+      - name: Install ccache
+        shell: bash
+        run: |
+          if [ "${{ runner.os }}" = "macOS" ]; then
+            brew install ccache
+          elif [ "${{ runner.os }}" = "Linux" ]; then
+            sudo apt-get install -y ccache
+          fi
+          # Already installed on Windows
+
+      - name: Generate cache key
+        shell: cmake -P {0}
+        run: |
+          string(TIMESTAMP current_date "%Y-%m-%d-%H;%M;%S" UTC)
+          file(APPEND "$ENV{GITHUB_ENV}" "CACHE_KEY=build_${{ matrix.os }}\n")
+          file(APPEND "$ENV{GITHUB_ENV}" "CACHE_TIMESTAMP=${current_date}\n")
+
+      - name: Update the cache (ccache)
+        uses: actions/cache@v3
+        with:
+          path: "${{ github.workspace }}/ccache"
+          key: ${{ env.CACHE_KEY }}_fmt_ccache_${{ env.CACHE_TIMESTAMP }}
+          restore-keys: |
+            ${{ env.CACHE_KEY }}_fmt_ccache_
+
+      - name: Setup ccache
+        working-directory: "${{ github.workspace }}"
+        shell: cmake -P {0}
+        run: |
+          file(MAKE_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}/ccache")
+          file(APPEND "$ENV{GITHUB_ENV}" "CCACHE_BASEDIR=${CMAKE_CURRENT_SOURCE_DIR}\n")
+          file(APPEND "$ENV{GITHUB_ENV}" "CCACHE_DIR=${CMAKE_CURRENT_SOURCE_DIR}/ccache\n")
+          file(APPEND "$ENV{GITHUB_ENV}" "CCACHE_COMPRESS=true\n")
+          # Trial and error to get all files in here
+          file(APPEND "$ENV{GITHUB_ENV}" "CCACHE_COMPRESSLEVEL=10\n")
+          # This should be multiplied by the number of compilation jobs and be no
+          # larger than 10G, which is the cache max size
+          file(APPEND "$ENV{GITHUB_ENV}" "CCACHE_MAXSIZE=1.6G\n")
+          # Use the content hash instead of mtime
+          file(APPEND "$ENV{GITHUB_ENV}" "CCACHE_COMPILERCHECK=content\n")
+          # Tell CMake to use ccache
+          file(APPEND "$ENV{GITHUB_ENV}" "CMAKE_CXX_COMPILER_LAUNCHER=ccache\n")
+          file(APPEND "$ENV{GITHUB_ENV}" "CMAKE_C_COMPILER_LAUNCHER=ccache\n")
+          # Clear stats before every build
+          execute_process(COMMAND ccache -z)
 
       - name: Configure
         run: cmake -B build -S . -DCMAKE_BUILD_TYPE=Release -G Ninja
@@ -36,6 +82,9 @@ jobs:
           name: fmt_${{ matrix.os }}_install
           path: build/install/fmt
           retention-days: 1
+
+      - name: ccache stats
+        run: ccache -s
 
       # Workaround for starting spdlog with matrix os
       # https://github.com/orgs/community/discussions/26639#discussioncomment-3949595
@@ -70,6 +119,52 @@ jobs:
         with:
           ninjaVersion: latest
 
+      - name: Install ccache
+        shell: bash
+        run: |
+          if [ "${{ runner.os }}" = "macOS" ]; then
+            brew install ccache
+          elif [ "${{ runner.os }}" = "Linux" ]; then
+            sudo apt-get install -y ccache
+          fi
+          # Already installed on Windows
+
+      - name: Generate cache key
+        shell: cmake -P {0}
+        run: |
+          string(TIMESTAMP current_date "%Y-%m-%d-%H;%M;%S" UTC)
+          file(APPEND "$ENV{GITHUB_ENV}" "CACHE_KEY=build_${{ matrix.os }}\n")
+          file(APPEND "$ENV{GITHUB_ENV}" "CACHE_TIMESTAMP=${current_date}\n")
+
+      - name: Update the cache (ccache)
+        uses: actions/cache@v3
+        with:
+          path: "${{ github.workspace }}/ccache"
+          key: ${{ env.CACHE_KEY }}_spdlog_ccache_${{ env.CACHE_TIMESTAMP }}
+          restore-keys: |
+            ${{ env.CACHE_KEY }}_spdlog_ccache_
+
+      - name: Setup ccache
+        working-directory: "${{ github.workspace }}"
+        shell: cmake -P {0}
+        run: |
+          file(MAKE_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}/ccache")
+          file(APPEND "$ENV{GITHUB_ENV}" "CCACHE_BASEDIR=${CMAKE_CURRENT_SOURCE_DIR}\n")
+          file(APPEND "$ENV{GITHUB_ENV}" "CCACHE_DIR=${CMAKE_CURRENT_SOURCE_DIR}/ccache\n")
+          file(APPEND "$ENV{GITHUB_ENV}" "CCACHE_COMPRESS=true\n")
+          # Trial and error to get all files in here
+          file(APPEND "$ENV{GITHUB_ENV}" "CCACHE_COMPRESSLEVEL=10\n")
+          # This should be multiplied by the number of compilation jobs and be no
+          # larger than 10G, which is the cache max size
+          file(APPEND "$ENV{GITHUB_ENV}" "CCACHE_MAXSIZE=1.6G\n")
+          # Use the content hash instead of mtime
+          file(APPEND "$ENV{GITHUB_ENV}" "CCACHE_COMPILERCHECK=content\n")
+          # Tell CMake to use ccache
+          file(APPEND "$ENV{GITHUB_ENV}" "CMAKE_CXX_COMPILER_LAUNCHER=ccache\n")
+          file(APPEND "$ENV{GITHUB_ENV}" "CMAKE_C_COMPILER_LAUNCHER=ccache\n")
+          # Clear stats before every build
+          execute_process(COMMAND ccache -z)
+
       - name: Configure
         run: cmake -B build -S . -DCMAKE_BUILD_TYPE=Release -G Ninja
 
@@ -80,7 +175,7 @@ jobs:
           path: build/install/fmt
 
       - name: Build spdlog
-        run: cmake --build build -t spdlog -- -d explain
+        run: cmake --build build -t spdlog
 
       - name: Upload spdlog install tree
         uses: actions/upload-artifact@v3
@@ -88,3 +183,6 @@ jobs:
           name: spdlog_${{ matrix.os }}_install
           path: build/install/spdlog
           retention-days: 1
+
+      - name: ccache stats
+        run: ccache -s
